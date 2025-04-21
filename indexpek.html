@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pirate Compass to Friends</title>
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #7a6148;
+      background-image: url('https://www.transparenttextures.com/patterns/paper-fibers.png');
+      background-blend-mode: multiply;
+    }
+    .round-robin {
+      width: 600px;
+      height: 600px;
+      background-color: #d2b48c;
+      border-radius: 50%;
+      box-shadow:
+        inset 0 0 50px rgba(0,0,0,0.5),
+        0 0 20px rgba(0,0,0,0.7);
+      position: relative;
+    }
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+    .rope {
+      fill: none;
+      stroke: #8b6f47;
+      stroke-width: 12;
+      stroke-linecap: round;
+      stroke-dasharray: 6, 6;
+    }
+    .seal {
+      fill: url(#sealGradient);
+      stroke: #4b0000;
+      stroke-width: 3;
+    }
+    .seal-cross {
+      stroke: #300000;
+      stroke-width: 4;
+      stroke-linecap: round;
+    }
+    .name {
+      font-family: 'IM Fell English SC', serif;
+      font-size: 18px;
+      fill: #3e2c18;
+      text-anchor: middle;
+    }
+    .needle {
+      stroke-linecap: round;
+    }
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="round-robin">
+    <svg id="compassSvg" viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="sealGradient" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#b22222" />
+          <stop offset="100%" stop-color="#8b0000" />
+        </radialGradient>
+        <path id="circlePath" d="M300,300 m-240,0 a240,240 0 1,1 480,0 a240,240 0 1,1 -480,0" />
+      </defs>
+
+      <!-- Rope border -->
+      <circle class="rope" cx="300" cy="300" r="285" />
+
+      <!-- Compass rose faint background -->
+      <g opacity="0.15" stroke="#000" stroke-width="2">
+        <line x1="300" y1="40" x2="300" y2="560"/>
+        <line x1="40" y1="300" x2="560" y2="300"/>
+      </g>
+
+      <!-- Crossed quills -->
+      <g transform="translate(300,300)">
+        <path d="M0,-110 Q8,-60 0,0 Q-8,-60 0,-110" stroke="#654321" stroke-width="4" fill="none" transform="rotate(45)"/>
+        <path d="M0,-110 Q8,-60 0,0 Q-8,-60 0,-110" stroke="#654321" stroke-width="4" fill="none" transform="rotate(-45)"/>
+      </g>
+
+      <!-- Wax seal -->
+      <circle class="seal" cx="300" cy="300" r="40"/>
+      <g class="seal-cross">
+        <line x1="280" y1="300" x2="320" y2="300"/>
+        <line x1="300" y1="280" x2="300" y2="320"/>
+      </g>
+
+      <!-- Compass needle -->
+      <g id="needle" transform="rotate(0,300,300)">
+        <line class="needle" x1="300" y1="300" x2="300" y2="100" stroke="crimson" stroke-width="4"/>
+        <line class="needle" x1="300" y1="300" x2="300" y2="500" stroke="#333" stroke-width="2"/>
+      </g>
+
+      <!-- Dynamic friend labels -->
+      <g id="friendLabels"></g>
+    </svg>
+  </div>
+
+  <script>
+    // Coordinates for each friend’s city
+    const friends = [
+      { name: 'Dalton', lat: 39.1653, lon: -86.5264 },   // Bloomington, IN
+      { name: 'Payton', lat: 37.5407, lon: -77.4360 },   // Richmond, VA
+      { name: 'Ben', lat: 37.9716, lon: -87.5711 },      // Evansville, IN
+      { name: 'Dakota', lat: 37.9716, lon: -87.5711 },   // Evansville, IN
+      { name: 'Riley', lat: 40.005367279052734, lon: -75.23747253417969 } // Provided coords
+    ];
+
+    function computeBearing(lat1, lon1, lat2, lon2) {
+      const toRad = d => d * Math.PI / 180;
+      const toDeg = r => r * 180 / Math.PI;
+      const φ1 = toRad(lat1), φ2 = toRad(lat2);
+      const Δλ = toRad(lon2 - lon1);
+      const y = Math.sin(Δλ) * Math.cos(φ2);
+      const x = Math.cos(φ1)*Math.sin(φ2) - Math.sin(φ1)*Math.cos(φ2)*Math.cos(Δλ);
+      return (toDeg(Math.atan2(y, x)) + 360) % 360;
+    }
+
+    function placeFriends(userLat, userLon) {
+      const svg = document.getElementById('compassSvg');
+      const labels = document.getElementById('friendLabels');
+      const radius = 240;
+      friends.forEach(f => {
+        const bearing = computeBearing(userLat, userLon, f.lat, f.lon);
+        const rad = (bearing - 90) * Math.PI / 180;
+        const x = 300 + radius * Math.cos(rad);
+        const y = 300 + radius * Math.sin(rad);
+        const txt = document.createElementNS(svg.namespaceURI, 'text');
+        txt.setAttribute('class', 'name');
+        txt.setAttribute('x', x);
+        txt.setAttribute('y', y);
+        txt.setAttribute('transform', `rotate(${bearing},${x},${y})`);
+        txt.textContent = f.name;
+        labels.appendChild(txt);
+      });
+    }
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(pos => {
+        placeFriends(pos.coords.latitude, pos.coords.longitude);
+      }, () => alert('Unable to retrieve your location.'));
+    } else {
+      alert('Geolocation not supported by your browser.');
+    }
+
+    // Keep needle pointing north
+    const needle = document.getElementById('needle');
+    if (window.DeviceOrientationEvent) {
+      const evt = 'ondeviceorientationabsolute' in window ? 'deviceorientationabsolute' : 'deviceorientation';
+      window.addEventListener(evt, e => {
+        let heading = e.alpha || 0;
+        if (e.webkitCompassHeading) heading = e.webkitCompassHeading;
+        needle.setAttribute('transform', `rotate(${-heading},300,300)`);
+      }, true);
+    }
+  </script>
+</body>
+</html>
